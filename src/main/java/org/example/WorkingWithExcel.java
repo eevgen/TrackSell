@@ -14,46 +14,59 @@ import java.util.Scanner;
 public class WorkingWithExcel {
 
     private static final int HEADER_ROW_INDEX = 0;
+    private static int lastRowIndex = HEADER_ROW_INDEX;
+    private static final int NUMBER_OF_COLUMNS = 6;
+    private static Sheet sheet;
+    private static FileOutputStream fileOut;
+    private static final Workbook workbook = new XSSFWorkbook();
 
     public WorkingWithExcel() {
         try {
-            Workbook workbook = new XSSFWorkbook();
-
-            Sheet sheet = workbook.createSheet("Warehouse");
+            sheet = workbook.createSheet("Warehouse");
+            fileOut = new FileOutputStream("employees.xlsx"); //creating xlsx file
 
             //Creating a header row
             Row headerRow = sheet.createRow(HEADER_ROW_INDEX);
             headerRow.createCell(0).setCellValue("Date purchased");
             headerRow.createCell(1).setCellValue("The title");
-            headerRow.createCell(2).setCellValue("Costed");
-            headerRow.createCell(3).setCellValue("Status");
+            headerRow.createCell(2).setCellValue("Bought price");
+            headerRow.createCell(3).setCellValue("Sold Price");
+            headerRow.createCell(4).setCellValue("Condition");
+            headerRow.createCell(5).setCellValue("Is sold");
 
-            Scanner scanner = new Scanner(System.in);
-            Scanner scanner1 = new Scanner(System.in);
-            System.out.print("Enter date the item was purchased: ");
-            String date = scanner.nextLine();
-            System.out.print("Enter date the items title: ");
-            String title = scanner.nextLine();
-            System.out.print("Enter date the items price: ");
-            double cost = scanner1.nextDouble();
-            System.out.print("Enter the status: ");
-            String status = scanner.nextLine();
-
-            Row firstItem = sheet.createRow(HEADER_ROW_INDEX + 1);
-            firstItem.createCell(0).setCellValue(date);
-            firstItem.createCell(1).setCellValue(title);
-            firstItem.createCell(2).setCellValue(cost);
-            firstItem.createCell(3).setCellValue(status);
-
-
-            FileOutputStream fileOut = new FileOutputStream("employees.xlsx"); //creating xlsx file
-            workbook.write(fileOut);
         } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
 
+    }
+
+    public boolean addItem(Item item) {
+        Row headerRow = sheet.createRow(lastRowIndex + 1);
+        headerRow.createCell(0).setCellValue(item.getDateBought());
+        headerRow.createCell(1).setCellValue(item.getTitle());
+        headerRow.createCell(2).setCellValue(item.getPriceBought());
+        if(item.isSold()){
+            headerRow.createCell(3).setCellValue(item.getPriceSold());
+        }
+        headerRow.createCell(4).setCellValue(item.getCondition().getConditionsText());
+        headerRow.createCell(5).setCellValue(item.isSold());
+
+        saveAndClose();
+        return true;
+    }
+
+    public void saveAndClose() {
+        try {
+            for (int i = 0; i <= NUMBER_OF_COLUMNS; i++) { //auto size all columns for better look
+                sheet.autoSizeColumn(i);
+            }
+
+            workbook.write(fileOut);
+            fileOut.close();
+            workbook.close();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to save and close Excel file", e);
+        }
     }
 }
