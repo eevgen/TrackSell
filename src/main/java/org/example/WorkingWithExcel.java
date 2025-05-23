@@ -19,6 +19,7 @@ public class WorkingWithExcel {
     private static Sheet sheet;
     private static FileOutputStream fileOut;
     private static final Workbook workbook = new XSSFWorkbook();
+    private static final MathCalculations mathCalculations = new MathCalculations();
 
     public WorkingWithExcel() {
         try {
@@ -33,6 +34,7 @@ public class WorkingWithExcel {
             headerRow.createCell(3).setCellValue("Sold Price");
             headerRow.createCell(4).setCellValue("Condition");
             headerRow.createCell(5).setCellValue("Is sold");
+            headerRow.createCell(6).setCellValue("Profit");
 
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
@@ -48,6 +50,7 @@ public class WorkingWithExcel {
         headerRow.createCell(2).setCellValue(item.getPriceBought());
         if(item.isSold()){
             headerRow.createCell(3).setCellValue(item.getPriceSold());
+            headerRow.createCell(6).setCellValue(item.getProfitInPercents());
         }
         headerRow.createCell(4).setCellValue(item.getCondition().getConditionsText());
         headerRow.createCell(5).setCellValue(item.isSold());

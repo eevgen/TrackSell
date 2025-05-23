@@ -2,12 +2,17 @@ package org.example;
 
 public class Item {
 
+
     private String dateBought;
     private String title;
     private double priceBought;
     private double priceSold;
     private Condition condition;
     private boolean isSold;
+    private double profitInPercents;
+
+    private static final MathCalculations mathCalculations = new MathCalculations();
+
 
     public Item(String dateBought, String title, double priceBought, double priceSold, Condition condition, boolean isSold) {
         this.dateBought = dateBought;
@@ -16,6 +21,7 @@ public class Item {
         this.priceSold = priceSold;
         this.condition = condition;
         this.isSold = isSold;
+        profitInPercents = mathCalculations.getTheProfitPercentage(priceBought, priceSold, 2);
     }
 
     public Item(String dateBought, String title, double priceBought, Condition condition, boolean isSold) {
@@ -48,5 +54,9 @@ public class Item {
 
     public boolean isSold() {
         return isSold;
+    }
+
+    public double getProfitInPercents() {
+        return profitInPercents;
     }
 }
