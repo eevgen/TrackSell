@@ -1,22 +1,50 @@
 package org.example;
 
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+
+import java.util.ArrayList;
+
 public class Item {
 
 
     private String dateBought;
     private String title;
+    private ArrayList<Size> sizes;
     private double priceBought;
     private double priceSold;
     private Condition condition;
     private boolean isSold;
     private double profitInPercents;
+    private int quantity;
+    private String sizesText;
+    private Sheet sizesSheet;
 
     private static final MathCalculations mathCalculations = new MathCalculations();
+    private static final WorkingWithExcel workingWithExcel = new WorkingWithExcel();
 
 
-    public Item(String dateBought, String title, double priceBought, double priceSold, Condition condition, boolean isSold) {
+    public Item(String dateBought, String title, ArrayList<Size> sizes, double priceBought, double priceSold, boolean isSold) {
         this.dateBought = dateBought;
         this.title = title;
+        this.sizes = sizes;
+        quantity = sizes.size();
+        if(quantity > 1) {
+            createSizesSheet();
+        }
+        this.priceBought = priceBought;
+        this.priceSold = priceSold;
+        this.isSold = isSold;
+        profitInPercents = mathCalculations.getTheProfitPercentage(priceBought, priceSold, 2);
+    }
+
+    public Item(String dateBought, String title, Size size, double priceBought, double priceSold, Condition condition, boolean isSold) {
+        this.dateBought = dateBought;
+        this.title = title;
+        ArrayList<Size> sizes = new ArrayList<>();
+        sizes.add(size);
+        this.sizes = sizes;
+        quantity = sizes.size();
         this.priceBought = priceBought;
         this.priceSold = priceSold;
         this.condition = condition;
@@ -24,9 +52,28 @@ public class Item {
         profitInPercents = mathCalculations.getTheProfitPercentage(priceBought, priceSold, 2);
     }
 
-    public Item(String dateBought, String title, double priceBought, Condition condition, boolean isSold) {
+    public Item(String dateBought, String title, ArrayList<Size> sizes, double priceBought, boolean isSold) {
         this.dateBought = dateBought;
         this.title = title;
+        this.sizes = sizes;
+        quantity = sizes.size();
+        if(quantity > 1) {
+            createSizesSheet();
+        }
+        this.priceBought = priceBought;
+        this.isSold = isSold;
+    }
+
+    public Item(String dateBought, String title, Size size, double priceBought, Condition condition, boolean isSold) {
+        this.dateBought = dateBought;
+        this.title = title;
+        ArrayList<Size> sizes = new ArrayList<>();
+        sizes.add(size);
+        this.sizes = sizes;
+        quantity = sizes.size();
+        if(quantity > 1) {
+            createSizesSheet();
+        }
         this.priceBought = priceBought;
         this.condition = condition;
         this.isSold = isSold;
@@ -56,7 +103,62 @@ public class Item {
         return isSold;
     }
 
+    public ArrayList<Size> getSizes() {
+        return sizes;
+    }
+
     public double getProfitInPercents() {
         return profitInPercents;
+    }
+
+    public int getQuantity() {
+        return quantity;
+    }
+
+    public String getSizesText() {
+        if (sizes == null || sizes.isEmpty()) {
+            return "";
+        }
+
+        ArrayList<Size> groupedSizes = new ArrayList<>();
+        for (Size s : sizes) {
+            boolean found = false;
+            for (Size g : groupedSizes) { // check if the size already exists in the grouped list
+                if (g.getSize().equalsIgnoreCase(s.getSize())) {
+                    int newQuantity = g.getQuantity() + s.getQuantity();
+                    groupedSizes.remove(g); // remove old entry
+                    groupedSizes.add(new Size(newQuantity, g.getSize())); // add new entry with updated quantity
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                groupedSizes.add(new Size(s.getQuantity(), s.getSize())); // if the size wasn't found in the grouped list, just add it
+            }
+        }
+
+        StringBuilder finalText = new StringBuilder();
+        for (Size s : groupedSizes) {
+            if (finalText.length() > 0) {
+                finalText.append(", ");
+            }
+            finalText.append(s.getQuantity()).append("x").append(s.getSize());
+        }
+
+        return finalText.toString();
+    }
+
+    public boolean createSizesSheet() {
+        sizesSheet = workingWithExcel.createSheet(title);
+        workingWithExcel.fillInHeaderRow(sizesSheet);
+        return true;
+    }
+
+    public boolean addItemInSheet(Item item) {
+        if(sizesSheet == null) {
+            createSizesSheet();
+        }
+        workingWithExcel.addItem(item, sizesSheet);
+        return true;
     }
 }

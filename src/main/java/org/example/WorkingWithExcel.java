@@ -15,7 +15,7 @@ public class WorkingWithExcel {
 
     private static final int HEADER_ROW_INDEX = 0;
     private static int lastRowIndex = HEADER_ROW_INDEX;
-    private static final int NUMBER_OF_COLUMNS = 6;
+    private static final int NUMBER_OF_COLUMNS = 8;
     private static Sheet sheet;
     private static FileOutputStream fileOut;
     private static final Workbook workbook = new XSSFWorkbook();
@@ -23,18 +23,15 @@ public class WorkingWithExcel {
 
     public WorkingWithExcel() {
         try {
-            sheet = workbook.createSheet("Warehouse");
+            sheet = workbook.getSheet("Warehouse");
+            if (sheet == null) {
+                sheet = workbook.createSheet("Warehouse");
+                fillInHeaderRow(sheet);
+            }
             fileOut = new FileOutputStream("employees.xlsx"); //creating xlsx file
 
             //Creating a header row
-            Row headerRow = sheet.createRow(HEADER_ROW_INDEX);
-            headerRow.createCell(0).setCellValue("Date purchased");
-            headerRow.createCell(1).setCellValue("The title");
-            headerRow.createCell(2).setCellValue("Bought price");
-            headerRow.createCell(3).setCellValue("Sold Price");
-            headerRow.createCell(4).setCellValue("Condition");
-            headerRow.createCell(5).setCellValue("Is sold");
-            headerRow.createCell(6).setCellValue("Profit");
+            fillInHeaderRow(sheet);
 
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
@@ -43,26 +40,60 @@ public class WorkingWithExcel {
 
     }
 
-    public boolean addItem(Item item) {
-        Row headerRow = sheet.createRow(lastRowIndex + 1);
-        headerRow.createCell(0).setCellValue(item.getDateBought());
-        headerRow.createCell(1).setCellValue(item.getTitle());
-        headerRow.createCell(2).setCellValue(item.getPriceBought());
-        if(item.isSold()){
-            headerRow.createCell(3).setCellValue(item.getPriceSold());
-            headerRow.createCell(6).setCellValue(item.getProfitInPercents());
-        }
-        headerRow.createCell(4).setCellValue(item.getCondition().getConditionsText());
-        headerRow.createCell(5).setCellValue(item.isSold());
+    public boolean fillInHeaderRow(Sheet sheet) {
+        Row headerRow = sheet.createRow(HEADER_ROW_INDEX);
+        headerRow.createCell(0).setCellValue("Date purchased");
+        headerRow.createCell(1).setCellValue("The title");
+        headerRow.createCell(2).setCellValue("Quantity");
+        headerRow.createCell(3).setCellValue("Sizes");
+        headerRow.createCell(4).setCellValue("Bought price");
+        headerRow.createCell(5).setCellValue("Sold Price");
+        headerRow.createCell(6).setCellValue("Condition");
+        headerRow.createCell(7).setCellValue("Is sold");
+        headerRow.createCell(8).setCellValue("Profit");
+        return true;
+    }
 
-        saveAndClose();
+    public boolean addItemToTheMainSheet(Item item) {
+        int newRowIndex = sheet.getPhysicalNumberOfRows();
+        Row row = sheet.createRow(newRowIndex);
+
+        row.createCell(0).setCellValue(item.getDateBought());
+        row.createCell(1).setCellValue(item.getTitle());
+        row.createCell(2).setCellValue(item.getQuantity());
+        row.createCell(3).setCellValue(item.getSizesText());
+        row.createCell(4).setCellValue(item.getPriceBought());
+        row.createCell(5).setCellValue(item.getPriceSold());
+        row.createCell(6).setCellValue(item.getCondition() != null ? item.getCondition().getConditionsText() : "");
+        row.createCell(7).setCellValue(item.isSold() ? "Yes" : "No");
+        row.createCell(8).setCellValue(item.getProfitInPercents());
+
+        return true;
+    }
+
+    public boolean addItem(Item item, Sheet sheet) {
+        int newRowIndex = sheet.getPhysicalNumberOfRows();
+        Row row = sheet.createRow(newRowIndex);
+
+        row.createCell(0).setCellValue(item.getDateBought());
+        row.createCell(1).setCellValue(item.getTitle());
+        row.createCell(2).setCellValue(item.getQuantity());
+        row.createCell(3).setCellValue(item.getSizesText());
+        row.createCell(4).setCellValue(item.getPriceBought());
+        row.createCell(5).setCellValue(item.getPriceSold());
+        row.createCell(6).setCellValue(item.getCondition() != null ? item.getCondition().getConditionsText() : "");
+        row.createCell(7).setCellValue(item.isSold() ? "Yes" : "No");
+        row.createCell(8).setCellValue(item.getProfitInPercents());
+
         return true;
     }
 
     public void saveAndClose() {
         try {
-            for (int i = 0; i <= NUMBER_OF_COLUMNS; i++) { //auto size all columns for better look
-                sheet.autoSizeColumn(i);
+            for (Sheet currentSheet : workbook) { //auto sizing all sheets
+                for (int i = 0; i <= NUMBER_OF_COLUMNS; i++) {
+                    currentSheet.autoSizeColumn(i);
+                }
             }
 
             workbook.write(fileOut);
@@ -71,5 +102,9 @@ public class WorkingWithExcel {
         } catch (IOException e) {
             throw new RuntimeException("Failed to save and close Excel file", e);
         }
+    }
+
+    public Sheet createSheet(String title) {
+        return workbook.createSheet(title);
     }
 }
