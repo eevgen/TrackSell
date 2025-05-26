@@ -52,18 +52,6 @@ public class Item {
         profitInPercents = mathCalculations.getTheProfitPercentage(priceBought, priceSold, 2);
     }
 
-    public Item(String dateBought, String title, ArrayList<Size> sizes, double priceBought, boolean isSold) {
-        this.dateBought = dateBought;
-        this.title = title;
-        this.sizes = sizes;
-        quantity = sizes.size();
-        if(quantity > 1) {
-            createSizesSheet();
-        }
-        this.priceBought = priceBought;
-        this.isSold = isSold;
-    }
-
     public Item(String dateBought, String title, Size size, double priceBought, Condition condition, boolean isSold) {
         this.dateBought = dateBought;
         this.title = title;
@@ -79,41 +67,6 @@ public class Item {
         this.isSold = isSold;
     }
 
-    public String getDateBought() {
-        return dateBought;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public double getPriceBought() {
-        return priceBought;
-    }
-
-    public double getPriceSold() {
-        return priceSold;
-    }
-
-    public Condition getCondition() {
-        return condition;
-    }
-
-    public boolean isSold() {
-        return isSold;
-    }
-
-    public ArrayList<Size> getSizes() {
-        return sizes;
-    }
-
-    public double getProfitInPercents() {
-        return profitInPercents;
-    }
-
-    public int getQuantity() {
-        return quantity;
-    }
 
     public String getSizesText() {
         if (sizes == null || sizes.isEmpty()) {
@@ -150,15 +103,55 @@ public class Item {
 
     public boolean createSizesSheet() {
         sizesSheet = workingWithExcel.createSheet(title);
-        workingWithExcel.fillInHeaderRow(sizesSheet);
-        return true;
+        return sizesSheet != null;
     }
 
     public boolean addItemInSheet(Item item) {
         if(sizesSheet == null) {
-            createSizesSheet();
+            if (!createSizesSheet()) { // secure in case it won't be created
+                return false;
+            }
         }
-        workingWithExcel.addItem(item, sizesSheet);
-        return true;
+        return workingWithExcel.addItem(item, sizesSheet);
+    }
+
+    public Sheet getSizesSheet() {
+        return sizesSheet;
+    }
+
+    public String getDateBought() {
+        return dateBought;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public double getPriceBought() {
+        return priceBought;
+    }
+
+    public double getPriceSold() {
+        return priceSold;
+    }
+
+    public Condition getCondition() {
+        return condition;
+    }
+
+    public boolean isSold() {
+        return isSold;
+    }
+
+    public ArrayList<Size> getSizes() {
+        return sizes;
+    }
+
+    public double getProfitInPercents() {
+        return profitInPercents;
+    }
+
+    public int getQuantity() {
+        return quantity;
     }
 }
