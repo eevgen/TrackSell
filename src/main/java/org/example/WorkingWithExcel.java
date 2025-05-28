@@ -1,24 +1,32 @@
 package org.example;
 
-import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.ss.usermodel.*; //added dependency in pom.xml from https://mvnrepository.com/artifact/org.apache.poi/poi/5.2.3
 import org.apache.poi.xssf.usermodel.XSSFWorkbook; // added dependency from https://mvnrepository.com/artifact/org.apache.poi/poi-ooxml/3.9
-/* I had an error "ERROR StatusLogger Log4j2 could not find a logging implementation" and found the solution to add 3 .jar files(dependencies) to Project Structure.
+/* I had an error "ERROR StatusLogger Log4j2 could not find a logging implementation" and found the solution to add 2 .jar files(dependencies) to Project Structure.
+They are located in the file JarDependencies in this project.
 Found solution on: https://stackoverflow.com/questions/47881821/error-statuslogger-log4j2-could-not-find-a-logging-implementation */
 
 import java.io.*;
-import java.util.Scanner;
 
 public class WorkingWithExcel {
 
     private static final int HEADER_ROW_INDEX = 0;
     private static final int NUMBER_OF_COLUMNS = 8;
     private static Sheet sheet;
-    private static FileOutputStream fileOut;
+    private static Sheet revenuesSheet;
     private static Workbook workbook = new XSSFWorkbook();
-    private CellStyle centeredStyle;
+
     private static final String FILE_NAME = "trades.xlsx";
-    private static final MathCalculations mathCalculations = new MathCalculations();
+    private static final String[] MAIN_SHEET_HEADERS = {
+            "Date purchased", "The title", "Quantity", "Sizes",
+            "Bought price($)", "Sold Price($)", "Condition", "Is sold", "Profit(%)"
+    };
+    private static final String MAIN_SHEET_TITLE = "Main";
+    private static final String REVENUES_SHEET_TITLE = "Revenues";
+    private static final String[] REVENUES_SHEET_HEADERS = {
+            "The title", "Size", "Bought price($)", "Sold Price($)", "Profit($)", "Profit(%)"
+    };
+    private static final WorkingWithCells workingWithCells = new WorkingWithCells();
 
     public WorkingWithExcel() {
         try {
@@ -32,33 +40,49 @@ public class WorkingWithExcel {
                 workbook = new XSSFWorkbook();
             }
 
-            centeredStyle = workbook.createCellStyle();
-            centeredStyle.setAlignment(HorizontalAlignment.CENTER);
-            centeredStyle.setVerticalAlignment(VerticalAlignment.CENTER);
-
-            sheet = createSheet("Main");
+            sheet = createSheet(MAIN_SHEET_TITLE);
+            revenuesSheet = createSheet(REVENUES_SHEET_TITLE);
         } catch (IOException e) {
             throw new RuntimeException("Error in creating/opening file.", e);
         }
     }
 
-    public boolean fillInHeaderRow(Sheet sheet) {
+    public void fillInTotalData() {
+        int firstDataRow = 1; // Skip header row (row 0)
+        int lastRow = revenuesSheet.getLastRowNum();
+        int targetRow = lastRow + 1;
+
+
+        Row totalRow = revenuesSheet.createRow(targetRow); // create the total row at the end
+
+        Cell labelCell = totalRow.createCell(0); // column A
+        CellStyle headerStyle = workingWithCells.getHeaderCellStyle(workbook, revenuesSheet);
+        labelCell.setCellValue("Total");
+
+        int[] columnsToSum = {2, 3, 4}; // columns C (index 2), D (index 3), and E (index 4)
+
+        for (int colIndex : columnsToSum) {
+            Cell totalCell = totalRow.createCell(colIndex);
+
+            char colLetter = (char) ('A' + colIndex); // excel columns are A=1, so we convert index to letter
+
+            totalCell.setCellFormula(String.format("SUM(%c%d:%c%d)",
+                    colLetter, firstDataRow + 1, colLetter, lastRow + 1));
+        }
+        for (int i = 0; i < REVENUES_SHEET_HEADERS.length; i++) { // style all cells in raw
+            Cell cell = totalRow.getCell(i);
+            if(cell == null) {
+                cell = totalRow.createCell(i);
+            }
+            cell.setCellStyle(headerStyle);
+        }
+        workingWithCells.centerAlignRow(totalRow);
+    }
+
+    public void fillInHeaderRow(Sheet sheet, String[] headers) { // filling in the header row (the first one) and styling it
         Row headerRow = sheet.createRow(HEADER_ROW_INDEX);
 
-        CellStyle headerStyle = workbook.createCellStyle(); // Create a style with gray background
-        headerStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
-        headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        headerStyle.setAlignment(HorizontalAlignment.CENTER);
-        headerStyle.setVerticalAlignment(VerticalAlignment.CENTER);
-
-        Font font = sheet.getWorkbook().createFont(); // make the font bold
-        font.setBold(true);
-        headerStyle.setFont(font);
-
-        String[] headers = {
-                "Date purchased", "The title", "Quantity", "Sizes",
-                "Bought price($)", "Sold Price($)", "Condition", "Is sold", "Profit(%)"
-        };
+        CellStyle headerStyle = workingWithCells.getHeaderCellStyle(workbook, sheet);
 
         for (int i = 0; i < headers.length; i++) {
             Cell cell = headerRow.createCell(i);
@@ -66,57 +90,58 @@ public class WorkingWithExcel {
             cell.setCellStyle(headerStyle);
         }
 
-        return true;
     }
 
-    public boolean addItemToTheMainSheet(Item item) {
+    public boolean addItemToTheMainSheet(Item item) { // adding item to the main sheet
         int newRowIndex = sheet.getPhysicalNumberOfRows();
         Row row = sheet.createRow(newRowIndex);
-
-
 
         if(fillInRaw(item, row)) {
             if (item.getQuantity() > 1) {
-                createHyperLink(row.getCell(3), item.getSizesSheet());
+                workingWithCells.createHyperLink(row.getCell(3), item.getSizesSheet(), workbook);
+            } else {
+                if (item.getPriceSold() > 0) {
+                    int newRevenuesRowIndex = revenuesSheet.getPhysicalNumberOfRows() - 1;
+                    Row revenuesRow = revenuesSheet.createRow(newRevenuesRowIndex);
+                    fillInRevenuesRaw(item, revenuesRow);
+                    workingWithCells.centerAlignRow(revenuesRow);
+                }
             }
-            centerAlignRow(row);
+            workingWithCells.centerAlignRow(row);
             return true;
         }
         return false;
     }
 
-    public boolean addItem(Item item, Sheet sheet) {
+    public boolean addItem(Item item, Sheet sheet) { // adding item to the sheet which is entered
         int newRowIndex = sheet.getPhysicalNumberOfRows();
         Row row = sheet.createRow(newRowIndex);
 
         if(fillInRaw(item, row)) {
-            centerAlignRow(row);
+            workingWithCells.centerAlignRow(row);
+            if(item.getPriceSold() > 0) {
+                int newRevenuesRowIndex = revenuesSheet.getPhysicalNumberOfRows();
+                Row revenuesRow = revenuesSheet.createRow(newRevenuesRowIndex);
+                fillInRevenuesRaw(item, revenuesRow);
+                workingWithCells.centerAlignRow(revenuesRow);
+            }
             return true;
         }
         return false;
     }
 
-    public void centerAlignRow(Row row) {
-        if (row == null) {
-            return;
-        }
+    public void clearLastRowInRevenuesSheet() { //clearing total profit raw for adding multiply sizes
+        int lastRowNum = revenuesSheet.getLastRowNum();
+        Row lastRow = revenuesSheet.getRow(lastRowNum);
 
-        Workbook workbook = row.getSheet().getWorkbook();
-
-        for (Cell cell : row) {
-            CellStyle originalStyle = cell.getCellStyle();
-            CellStyle newStyle = workbook.createCellStyle();
-            newStyle.cloneStyleFrom(originalStyle);
-
-            newStyle.setAlignment(centeredStyle.getAlignment());
-            newStyle.setVerticalAlignment(centeredStyle.getVerticalAlignment());
-
-            cell.setCellStyle(newStyle);
+        if (lastRow != null) {
+            revenuesSheet.removeRow(lastRow); // Remove the row entirely
         }
     }
 
 
-    public boolean fillInRaw(Item item, Row row) {
+
+    public boolean fillInRaw(Item item, Row row) { // filling in raw except adding hyperlink to sizes
         if (item == null || row == null) {
             return false;
         }
@@ -137,7 +162,16 @@ public class WorkingWithExcel {
         }
     }
 
-    public void save() {
+    public void fillInRevenuesRaw(Item item, Row row) { // filling in raw in revenues sheet
+        row.createCell(0).setCellValue(item.getTitle());
+        row.createCell(1).setCellValue(item.getFirstSize());
+        row.createCell(2).setCellValue(item.getPriceBought());
+        row.createCell(3).setCellValue(item.getPriceSold());
+        row.createCell(4).setCellValue(item.getNetRevenue());
+        row.createCell(5).setCellValue(item.getProfitInPercents());
+    }
+
+    public void save() { // saving file
         try (FileOutputStream fileOut = new FileOutputStream(FILE_NAME)) {
             for (Sheet currentSheet : workbook) {
                 for (int i = 0; i <= NUMBER_OF_COLUMNS; i++) {
@@ -149,7 +183,7 @@ public class WorkingWithExcel {
             throw new RuntimeException("Error saving file", e);
         }
     }
-    public void close() {
+    public void close() { //closing file
         try {
             workbook.close();
         } catch (IOException e) {
@@ -157,30 +191,21 @@ public class WorkingWithExcel {
         }
     }
 
-    public Sheet createSheet(String title) {
+    public Sheet createSheet(String title) { //creating sheet with entered title
         Sheet sheet = workbook.getSheet(title);
         if(sheet == null) {
             Sheet newSheet = workbook.createSheet(title);
-            fillInHeaderRow(newSheet);
+            if(title.equals(REVENUES_SHEET_TITLE)) {
+                fillInHeaderRow(newSheet, REVENUES_SHEET_HEADERS);
+            } else {
+                fillInHeaderRow(newSheet, MAIN_SHEET_HEADERS);
+            }
             return newSheet;
         } else {
             return sheet;
         }
     }
-    private boolean createHyperLink(Cell cell, Sheet targetSheet) {
-        CreationHelper createHelper = workbook.getCreationHelper(); // got from https://stackoverflow.com/questions/57300034/how-to-use-apache-poi-to-create-excel-hyper-link-that-links-to-long-url
-        Hyperlink hyperlink = createHelper.createHyperlink(HyperlinkType.DOCUMENT); // HyperlinkType.DOCUMENT is only for internal links
-        hyperlink.setAddress(String.format("'%s'!%s", targetSheet.getSheetName(), cell.getAddress()));
-        cell.setHyperlink(hyperlink);
-
-        CellStyle linkStyle = workbook.createCellStyle(); // got all styling methods from https://poi.apache.org/apidocs/dev/org/apache/poi/ss/usermodel/CellStyle.html
-        Font linkFont = workbook.createFont();
-        linkFont.setUnderline(Font.U_SINGLE);
-        linkFont.setColor(IndexedColors.BLUE.getIndex());
-        linkStyle.setFont(linkFont);
-        cell.setCellStyle(linkStyle); // apply all changes
-
-        return true;
+    public boolean isTheFirstItemInRevenuesSheet() { // checking if the sheet has only header row for not clearing it while adding items with multiply sizes
+        return revenuesSheet.getPhysicalNumberOfRows() == 1;
     }
-
 }
