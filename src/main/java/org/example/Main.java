@@ -26,7 +26,7 @@ package org.example;
  * This tool aims to save time and reduce manual effort in managing small resale businesses.
  */
 // Project Description text was formatted by https://chatgpt.com
-
+// Project is on GitHub - https://github.com/eevgen/TradeTracker
 
 public class Main {
     private static final MainMenu mainMenu = new MainMenu();
